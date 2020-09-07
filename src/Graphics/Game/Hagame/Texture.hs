@@ -20,7 +20,7 @@ import qualified Data.Vector.Storable as VS
 data Texture = Texture GL.TextureObject
 
 
-createTexture :: Int32 -> Int32 -> GL.PixelData a -> IO Texture
+createTexture :: Int32 -> Int32 -> GL.PixelData a -> IO ((Int32, Int32), Texture)
 createTexture width height textureData = do
     texId <- GL.genObjectName :: IO GL.TextureObject
 
@@ -36,25 +36,29 @@ createTexture width height textureData = do
 
     GL.textureBinding GL.Texture2D $= Nothing
 
-    return $ Texture texId
+    return ((width, height), Texture texId)
 
 bindTexture :: Texture -> IO ()
 bindTexture (Texture texId) = do
     GL.textureBinding GL.Texture2D $= Just texId
 
-loadTexture :: String -> IO Texture -- the a is just a type I dont know yet
+loadTexture :: String -> IO (Either String ((Int32, Int32), Texture))
 loadTexture filename = do
-    Right image <- readImage filename
+    eimage <- readImage filename
 
-    let rgbPixel = case image of
-            ImageRGBA8 img -> promoteImage img :: Image PixelRGBA8
-    
-    -- let rgbPixel = convertRGBA8 image
-    let width = fromIntegral $ imageWidth rgbPixel
-    let height = fromIntegral $ imageHeight rgbPixel
-    let idata = imageData rgbPixel :: VS.Vector Word8
+    case eimage of
+        Left msg -> do
+            putStrLn msg
+            return $ Left msg
+        Right image -> do
+            let rgbPixel = convertRGBA8 image
+            
+            -- let rgbPixel = convertRGBA8 image
+            let width = fromIntegral $ imageWidth rgbPixel
+            let height = fromIntegral $ imageHeight rgbPixel
+            let idata = imageData rgbPixel :: VS.Vector Word8
 
-    -- print idata
+            -- print idata
 
-    VS.unsafeWith idata $ \ptr -> 
-        createTexture width height (GL.PixelData GL.RGBA GL.UnsignedByte ptr)
+            Right <$> (VS.unsafeWith idata $ \ptr -> 
+                createTexture width height (GL.PixelData GL.RGBA GL.UnsignedByte ptr))

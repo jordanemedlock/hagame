@@ -13,14 +13,13 @@ import Data.Time (getCurrentTime, diffUTCTime)
 
 type DebugCallback = GL.DebugMessage -> IO ()
 type InitializeCallback a = Maybe a -> IO (Maybe a) 
-type UpdateCallback a = Maybe a -> Float -> IO (Maybe a)
+type UpdateCallback a = Maybe a -> GLFW.Window -> Float -> IO (Maybe a)
 type RenderCallback a = Maybe a -> IO ()
 type DeleteCallback a = Maybe a -> IO ()
 
 data GameOptions a = 
     GameOptions { errorCallback :: GLFW.ErrorCallback
                 , debugCallback :: DebugCallback
-                , keyCallback :: GLFW.KeyCallback
                 , windowSize :: (Int, Int)
                 , windowTitle :: String
                 , gameState :: Maybe a
@@ -41,12 +40,11 @@ defaultDebugCallback msg = do
 
 defaultGameOptions = GameOptions    { errorCallback = defaultErrCallback
                                     , debugCallback = defaultDebugCallback
-                                    , keyCallback = \w k i s m -> return ()
                                     , windowSize = (640, 480)
                                     , windowTitle = "Hagame Game"
                                     , gameState = Nothing
                                     , initializeGame = \s -> return s
-                                    , updateGame = \s dt -> return s
+                                    , updateGame = \s w dt -> return s
                                     , renderGame = \s -> return ()
                                     , deleteAssets = \s -> return ()
                                     }
@@ -65,6 +63,7 @@ runGame gameOptions = do
             case mwindow of
                 Nothing -> errorCallback gameOptions GLFW.Error'NotInitialized "Game Initialization Failed"
                 Just window -> do
+
                     startTime <- getCurrentTime
 
                     state <- mainLoop gameOptions window state startTime
@@ -93,13 +92,12 @@ initGame gameOptions = do
             GL.debugOutput $= GL.Enabled
             GL.debugMessageCallback $= Just (debugCallback gameOptions)
 
-            GLFW.setKeyCallback window $ Just (keyCallback gameOptions)
-
             (width, height) <- GLFW.getFramebufferSize window
             GL.viewport $= (GL.Position 0 0, GL.Size (fromIntegral width) (fromIntegral height))
 
             GL.blend $= GL.Enabled
             GL.blendFunc $= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
+            GL.depthFunc $= (Just GL.Lequal)
 
             state <- return $ gameState gameOptions
 
@@ -113,12 +111,12 @@ mainLoop gameOptions window state previousTime = do
     GLFW.pollEvents
 
     GL.clearColor $= (GL.Color4 0 0 0 1)
-    GL.clear [GL.ColorBuffer]
+    GL.clear [GL.ColorBuffer, GL.DepthBuffer]
 
     thisTime <- getCurrentTime
     let deltaTime = realToFrac $ diffUTCTime thisTime previousTime
 
-    state <- updateGame gameOptions state deltaTime
+    state <- updateGame gameOptions state window deltaTime
 
     renderGame gameOptions state
 
@@ -127,8 +125,4 @@ mainLoop gameOptions window state previousTime = do
     if shouldClose 
         then return state
         else mainLoop gameOptions window state thisTime
-
-    
-
-
 

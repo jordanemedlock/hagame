@@ -1,5 +1,6 @@
 module Graphics.Game.Hagame.Sprites (
-    Transform(..), Sprite(..), createSprite, drawSprite, deleteSprite, rotateSprite
+      Transform(..), Sprite(..)
+    , createSprite, drawSprite, deleteSprite, rotateSprite, moveSprite
 ) where
 
 
@@ -21,8 +22,8 @@ import Graphics.Game.Hagame.Texture
 import Graphics.Game.Hagame.Shader
 
 data Transform = 
-    Transform2D { position2D :: GL.Vector2 Float 
-                , size2D :: GL.Vector2 Float
+    Transform { position :: GL.Vector3 Float 
+                , size :: GL.Vector3 Float
                 , rotation2D :: Float
                 }
 
@@ -38,13 +39,13 @@ data Sprite =
 createSpriteVAO :: IO GL.VertexArrayObject
 createSpriteVAO = do
     
-    let verticesL = [ (-0.5), (-0.5),   0.0, 1.0
-                    , 0.5, 0.5,         1.0, 0.0
-                    , (-0.5), 0.5,      0.0, 0.0
+    let verticesL = [ (-0.5), (-0.5),   0.0, 0.0
+                    , 0.5, 0.5,         1.0, 1.0
+                    , (-0.5), 0.5,      0.0, 1.0
                     
-                    , (-0.5), (-0.5),   0.0, 1.0
-                    , 0.5, (-0.5),      1.0, 1.0
-                    , 0.5, 0.5,         1.0, 0.0
+                    , (-0.5), (-0.5),   0.0, 0.0
+                    , 0.5, (-0.5),      1.0, 0.0
+                    , 0.5, 0.5,         1.0, 1.0
                     ] :: [Float]
     vertices <- newArray verticesL
     let verticesSize = fromIntegral $ sizeOf (0.0 :: Float) * length verticesL
@@ -89,11 +90,11 @@ drawSprite (Sprite shader vao texture transform color) = do
     GL.bindVertexArrayObject $= Nothing
 
 getTransformMatrix :: Transform -> M.Matrix Float
-getTransformMatrix (Transform2D (GL.Vector2 x y) (GL.Vector2 width height) rot) = model
+getTransformMatrix (Transform pos size rot) = model
     where 
-        translate = translationMat (GL.Vector3 x y 0.0)
+        translate = translationMat pos
         rotate = rotationMat2D (pi / 180 * rot)
-        scale = scaleMat (GL.Vector3 width height 1.0)
+        scale = scaleMat size
         model = translate * rotate * scale
 
 rotateSprite :: Sprite -> Float -> Sprite
@@ -101,6 +102,13 @@ rotateSprite sprite rot = sprite { sprTransform = trans { rotation2D = rot' } }
     where 
         trans = sprTransform sprite
         rot' = rotation2D trans + rot
+
+moveSprite :: Sprite -> GL.Vector3 Float -> Sprite
+moveSprite sprite (GL.Vector3 dx dy dz) = sprite { sprTransform = trans { position = pos } }
+    where
+        trans = sprTransform sprite
+        (GL.Vector3 x y z) = position trans
+        pos = (GL.Vector3 (x + dx) (y + dy) (z + dz))
 
 deleteSprite :: Sprite -> IO ()
 deleteSprite = GL.deleteObjectName . sprVAO
