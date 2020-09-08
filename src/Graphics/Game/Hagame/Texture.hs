@@ -1,5 +1,5 @@
 module Graphics.Game.Hagame.Texture (
-    loadTexture, bindTexture, Texture
+    loadTexture, bindTexture, Texture(texSize)
 ) where
 
 
@@ -17,32 +17,34 @@ import Codec.Picture.Types (promoteImage)
 import qualified Data.Vector.Storable as VS
 
 
-data Texture = Texture GL.TextureObject
+data Texture = 
+    Texture { texId :: GL.TextureObject
+            , texSize :: GL.Vector2 Int
+            }
 
 
-createTexture :: Int32 -> Int32 -> GL.PixelData a -> IO ((Int32, Int32), Texture)
+createTexture :: Int -> Int -> GL.PixelData a -> IO Texture
 createTexture width height textureData = do
     texId <- GL.genObjectName :: IO GL.TextureObject
 
     GL.textureBinding GL.Texture2D $= Just texId
 
-    putStrLn "Setting Texture Image"
-    GL.texImage2D GL.Texture2D GL.NoProxy 0 GL.RGBA8 (GL.TextureSize2D width height) 0 textureData
+    let size = GL.TextureSize2D (fromIntegral width) (fromIntegral height)
+    GL.texImage2D GL.Texture2D GL.NoProxy 0 GL.RGBA8 size 0 textureData
 
-    putStrLn "Setting Texture Wrap Mode"
     GL.textureWrapMode GL.Texture2D GL.S $= (GL.Repeated, GL.Repeat)
     GL.textureWrapMode GL.Texture2D GL.T $= (GL.Repeated, GL.Repeat)
     GL.textureFilter GL.Texture2D $= ((GL.Nearest, Nothing), GL.Nearest)
 
     GL.textureBinding GL.Texture2D $= Nothing
 
-    return ((width, height), Texture texId)
+    return $ Texture texId (GL.Vector2 width height)
 
 bindTexture :: Texture -> IO ()
-bindTexture (Texture texId) = do
+bindTexture (Texture texId _) = do
     GL.textureBinding GL.Texture2D $= Just texId
 
-loadTexture :: String -> IO (Either String ((Int32, Int32), Texture))
+loadTexture :: String -> IO (Either String Texture)
 loadTexture filename = do
     eimage <- readImage filename
 
