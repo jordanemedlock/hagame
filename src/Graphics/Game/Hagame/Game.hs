@@ -1,4 +1,4 @@
-module Graphics.Game.Hagame.Window (
+module Graphics.Game.Hagame.Game (
       GameOptions(..), runGame, defaultGameOptions
     , DebugCallback, InitializeCallback, UpdateCallback
     , RenderCallback, DeleteCallback
@@ -10,23 +10,23 @@ import Graphics.Rendering.OpenGL (($=))
 import Data.Time (getCurrentTime, diffUTCTime)
 
 
-
 type DebugCallback = GL.DebugMessage -> IO ()
 type InitializeCallback a = Maybe a -> IO (Maybe a) 
 type UpdateCallback a = Maybe a -> GLFW.Window -> Float -> IO (Maybe a)
 type RenderCallback a = Maybe a -> IO ()
 type DeleteCallback a = Maybe a -> IO ()
 
+-- | Options used to initialize the game, the whole game should be here
 data GameOptions a = 
-    GameOptions { errorCallback :: GLFW.ErrorCallback
-                , debugCallback :: DebugCallback
-                , windowSize :: (Int, Int)
-                , windowTitle :: String
-                , gameState :: Maybe a
-                , initializeGame :: InitializeCallback a
-                , updateGame :: UpdateCallback a
-                , renderGame :: RenderCallback a
-                , deleteAssets :: DeleteCallback a
+    GameOptions { errorCallback :: GLFW.ErrorCallback -- ^ GLFW error callback
+                , debugCallback :: DebugCallback -- ^ OpenGL debug callback
+                , windowSize :: (Int, Int) -- ^ Initial window size
+                , windowTitle :: String -- ^ Initial window title
+                , gameState :: Maybe a -- ^ Game's global state
+                , initializeGame :: InitializeCallback a -- ^ Callback used to initialize the game
+                , updateGame :: UpdateCallback a -- ^ Called to update the state ever loop before render
+                , renderGame :: RenderCallback a -- ^ Called every loop iteration to render the game
+                , deleteAssets :: DeleteCallback a -- ^ Called after game stops to remove assets/state
                 }
 
 defaultErrCallback err msg = do
@@ -49,6 +49,8 @@ defaultGameOptions = GameOptions    { errorCallback = defaultErrCallback
                                     , deleteAssets = \s -> return ()
                                     }
 
+-- | Entry point for ever game made with Hagame.  
+-- Creates the game window, initializes the game, starts the main loop then handles when it closes.
 runGame :: GameOptions a -> IO ()
 runGame gameOptions = do
     GLFW.setErrorCallback $ Just (errorCallback gameOptions)
@@ -72,6 +74,7 @@ runGame gameOptions = do
         
                     GLFW.terminate
 
+-- | Initializes the game window OpenGL and GLFW environments, and runs the user initialization func.
 initGame :: GameOptions a -> IO (Maybe GLFW.Window, Maybe a)
 initGame gameOptions = do
     GLFW.windowHint (GLFW.WindowHint'ContextVersionMajor 3)
@@ -106,7 +109,7 @@ initGame gameOptions = do
             return (Just window, state)
 
 
-
+-- | Recursive game loop
 mainLoop gameOptions window state previousTime = do
     GLFW.pollEvents
 

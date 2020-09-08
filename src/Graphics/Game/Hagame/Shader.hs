@@ -7,9 +7,14 @@ import Graphics.Rendering.OpenGL (($=))
 import qualified Data.ByteString as BS
 import System.FilePath.Posix (takeExtensions)
 
+-- | Wraps an OpenGL program 
 data Shader = Shader GL.Program
 
-loadShader :: String -> String -> Maybe String -> IO (Maybe Shader)
+-- | Loads a shader from its respective GLSL files
+loadShader  :: String -- ^ Vertex shader file location.  Must be *.vert
+            -> String -- ^ Fragment shader file location.  Must be *.frag
+            -> Maybe String -- ^ Optional Geometry file location.  Must be *.geom
+            -> IO (Maybe Shader)
 loadShader vertexFile fragmentFile mGeometryFile = do
     putStrLn "Reading Shader Files"
     if ((takeExtensions vertexFile) /= ".vert" && (takeExtensions fragmentFile) /= ".frag")
@@ -17,20 +22,22 @@ loadShader vertexFile fragmentFile mGeometryFile = do
         else do
             vertexSource <- BS.readFile vertexFile
             fragmentSource <- BS.readFile fragmentFile
-            mGeometrySource <- mIO BS.readFile mGeometryFile
+            mGeometrySource <- mapM BS.readFile mGeometryFile
 
             compileShader vertexSource fragmentSource mGeometrySource
 
-compileShader :: BS.ByteString -> BS.ByteString -> Maybe BS.ByteString -> IO (Maybe Shader)
+-- | Compiles shader from its strings
+compileShader   :: BS.ByteString -- ^ Vertex Soure
+                -> BS.ByteString -- ^ Fragment Source
+                -> Maybe BS.ByteString -- ^ Optional Geometry Source
+                -> IO (Maybe Shader)
 compileShader vertexSource fragmentSource mGeometrySource = do
-    putStrLn "Creating Shaders"
     vertex <- GL.createShader GL.VertexShader
     fragment <- GL.createShader GL.FragmentShader
 
     GL.shaderSourceBS vertex $= vertexSource
     GL.shaderSourceBS fragment $= fragmentSource
 
-    putStrLn "Compiling Shaders"
     GL.compileShader vertex
     GL.compileShader fragment
 
@@ -65,12 +72,11 @@ compileShader vertexSource fragmentSource mGeometrySource = do
 
             return Nothing
         else do
-            putStrLn "Attaching Shaders"
             program <- GL.createProgram
 
             GL.attachShader program vertex
             GL.attachShader program fragment
-            mIO (GL.attachShader program) mGeometry
+            mapM (GL.attachShader program) mGeometry
 
             GL.linkProgram program
 
@@ -83,17 +89,23 @@ compileShader vertexSource fragmentSource mGeometrySource = do
                     return $ Just $ Shader program
                 else return Nothing
 
-            
+-- | Sets the OpenGL current shader
 useShader :: Shader -> IO ()
 useShader (Shader shader) = GL.currentProgram $= Just shader
 
+-- | Clears the OpenGL current shader
 clearShader :: IO ()
 clearShader = GL.currentProgram $= Nothing
 
+-- | Deletes the shader
 deleteShader :: Shader -> IO ()
 deleteShader (Shader shader) = GL.deleteObjectName shader
 
-uniform :: GL.Uniform a => Shader -> String -> GL.StateVar a
+-- | Sets/gets the uniform value for shader
+uniform :: GL.Uniform a 
+        => Shader -- ^ Shader that you want to access
+        -> String -- ^ Uniform name you want to access
+        -> GL.StateVar a -- ^ Setter/Getter
 uniform (Shader shader) name = GL.makeStateVar getter setter
     where 
         getter :: GL.Uniform a => IO a
@@ -107,10 +119,3 @@ uniform (Shader shader) name = GL.makeStateVar getter setter
             location <- GL.get $ GL.uniformLocation shader name
             GL.uniform location $= val
             
-
-
-
-mIO :: (a -> IO b) -> Maybe a -> IO (Maybe b)
--- mIO f (Just x) = Just <$> f x
--- mIO f Nothing = return Nothing
-mIO = mapM

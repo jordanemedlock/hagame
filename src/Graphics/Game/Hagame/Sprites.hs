@@ -21,21 +21,23 @@ import System.FilePath.Posix (takeExtensions)
 import Graphics.Game.Hagame.Texture
 import Graphics.Game.Hagame.Shader
 
+-- | Transform object
 data Transform = 
-    Transform { position :: GL.Vector3 Float 
-                , size :: GL.Vector3 Float
-                , rotation2D :: Float
+    Transform   { position :: GL.Vector3 Float -- ^ Position
+                , size :: GL.Vector3 Float -- ^ Size
+                , rotation2D :: Float -- ^ Rotation
                 }
 
-
+-- | Sprite object
 data Sprite = 
-    Sprite  { sprShader :: Shader
-            , sprVAO :: GL.VertexArrayObject
-            , sprTexture :: Texture
-            , sprTransform :: Transform
-            , sprColor :: GL.Color4 Float
+    Sprite  { sprShader :: Shader -- ^ Shader for rendering
+            , sprVAO :: GL.VertexArrayObject -- ^ VAO sprite geometry
+            , sprTexture :: Texture -- ^ Sprite texture
+            , sprTransform :: Transform -- ^ Sprite global transform
+            , sprColor :: GL.Color4 Float -- ^ Sprite color hint
             }
 
+-- | Creates the sprites VAO and adds the goemetry
 createSpriteVAO :: IO GL.VertexArrayObject
 createSpriteVAO = do
     
@@ -67,11 +69,17 @@ createSpriteVAO = do
 
     return vao
 
-createSprite :: Shader -> Texture -> Transform -> GL.Color4 Float -> IO Sprite
+-- | Create a sprite
+createSprite    :: Shader -- ^ The sprite shader
+                -> Texture -- ^ The sprite's texture
+                -> Transform -- ^ The sprite's global transform
+                -> GL.Color4 Float -- ^ The sprite's color hint
+                -> IO Sprite
 createSprite shader texture transform color = do
     vao <- createSpriteVAO
     return $ Sprite shader vao texture transform color
 
+-- | Draw the sprite to the OpenGL context
 drawSprite :: Sprite -> IO ()
 drawSprite (Sprite shader vao texture transform color) = do
     model <- toGLMatrix $ getTransformMatrix transform
@@ -89,6 +97,8 @@ drawSprite (Sprite shader vao texture transform color) = do
     GL.drawArrays GL.Triangles 0 6
     GL.bindVertexArrayObject $= Nothing
 
+
+-- | Create a 4x4 transformation matrix from Transform object
 getTransformMatrix :: Transform -> M.Matrix Float
 getTransformMatrix (Transform pos size rot) = model
     where 
@@ -97,12 +107,14 @@ getTransformMatrix (Transform pos size rot) = model
         scale = scaleMat size
         model = translate * rotate * scale
 
+-- | Helper function to rotate the sprite
 rotateSprite :: Sprite -> Float -> Sprite
 rotateSprite sprite rot = sprite { sprTransform = trans { rotation2D = rot' } }
     where 
         trans = sprTransform sprite
         rot' = rotation2D trans + rot
 
+-- | Helper function to move the sprite
 moveSprite :: Sprite -> GL.Vector3 Float -> Sprite
 moveSprite sprite (GL.Vector3 dx dy dz) = sprite { sprTransform = trans { position = pos } }
     where
@@ -110,5 +122,6 @@ moveSprite sprite (GL.Vector3 dx dy dz) = sprite { sprTransform = trans { positi
         (GL.Vector3 x y z) = position trans
         pos = (GL.Vector3 (x + dx) (y + dy) (z + dz))
 
+-- | Delete the sprite
 deleteSprite :: Sprite -> IO ()
 deleteSprite = GL.deleteObjectName . sprVAO

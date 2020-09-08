@@ -1,6 +1,9 @@
 {-# LANGUAGE TupleSections #-}
 
-module Graphics.Game.Hagame.Fonts where
+module Graphics.Game.Hagame.Fonts (
+      Character(charSize, charBearing, charAdvancement), Font(fontCharacters, fontShader)
+    , loadFont, renderString
+) where
 
 import FreeType
 import qualified Graphics.Rendering.OpenGL as GL
@@ -12,21 +15,27 @@ import Foreign.Marshal.Array (newArray)
 import Control.Monad (foldM_)
 import Graphics.Game.Hagame.Shader (Shader, useShader, uniform)
 
+-- | 'Character' data type for fonts, contains everthing to render a 'Char'
 data Character = 
-    Character   { charTexId :: GL.TextureObject
-                , charSize :: GL.TextureSize2D
-                , charBearing :: GL.Vector2 Int32
-                , charAdvancement :: Int32
+    Character   { charTexId :: GL.TextureObject -- ^ OpenGL texture id for character
+                , charSize :: GL.TextureSize2D -- ^ Size of the character
+                , charBearing :: GL.Vector2 Int32 -- ^ Bearing/offset for the character 
+                , charAdvancement :: Int32 -- ^ Advancement/kerning for the character
                 }
 
+-- | 'Font' data type contains everything to render a string using the font
 data Font = 
-    Font    { fontCharacters :: [Character]
-            , fontShader :: Shader
-            , fontVAO :: GL.VertexArrayObject
-            , fontVBO :: GL.BufferObject
+    Font    { fontCharacters :: [Character] -- ^ A list of 'Character's in ASCII order
+            , fontShader :: Shader -- ^ Glyph shader for the font
+            , fontVAO :: GL.VertexArrayObject -- ^ Reusable VAO to hold the tris to draw
+            , fontVBO :: GL.BufferObject -- ^ Reusable VBO to hold the tris
             }
 
-loadFont :: String -> Int -> Shader -> IO Font
+-- | Load a font from a TTF file 
+loadFont    :: String   -- ^ Filename
+            -> Int      -- ^ Font size/height in pixels
+            -> Shader   -- ^ Glyph shader to render the font
+            -> IO Font
 loadFont name height shader = ft_With_FreeType $ \ft -> 
     ft_With_Face ft name 0 $ \face -> do
 
@@ -40,7 +49,7 @@ loadFont name height shader = ft_With_FreeType $ \ft ->
 
         return $ Font chars shader vao vbo
 
-
+-- | Load the VAO and VBO objects and sets them up
 loadFontVAOVBO :: IO (GL.VertexArrayObject, GL.BufferObject)
 loadFontVAOVBO = do
     vao <- GL.genObjectName :: IO GL.VertexArrayObject
@@ -59,7 +68,10 @@ loadFontVAOVBO = do
 
     return (vao, vbo)
 
-loadChar :: FT_Face -> Int -> IO Character
+-- | Load the font into a 'Character' object
+loadChar    :: FT_Face -- ^ FreeType font object
+            -> Int -- ^ ASCII character code 
+            -> IO Character
 loadChar pFace c = do
     ft_Load_Char pFace (fromIntegral c) FT_LOAD_RENDER
 
@@ -82,8 +94,13 @@ loadChar pFace c = do
 
     return $ Character texId textureSize (GL.Vector2 (gsrBitmap_left glyph) (gsrBitmap_top glyph)) (fromIntegral $ vX $ gsrAdvance glyph)
 
-
-renderString :: Font -> String -> GL.Vector2 Float -> Float -> GL.Color4 Float -> IO ()
+-- | Render string to the OpenGL context using the provided font
+renderString    :: Font -- ^ Font to used to render string
+                -> String -- ^ String to render
+                -> GL.Vector2 Float -- ^ Render position
+                -> Float -- ^ Scale relative to loaded font size
+                -> GL.Color4 Float -- ^ Font color
+                -> IO ()
 renderString font@(Font chars shader vao vbo) string pos scale color = do
 
     useShader shader
@@ -95,13 +112,20 @@ renderString font@(Font chars shader vao vbo) string pos scale color = do
 
     let (GL.Vector2 x y) = pos
 
-    foldM_ (\x c -> renderCharacter font y scale color (chars !! fromEnum c) x) x string
+    foldM_ (\x c -> renderCharacter font y scale (chars !! fromEnum c) x) x string
 
     GL.bindVertexArrayObject $= Nothing
     GL.textureBinding GL.Texture2D $= Nothing
 
-renderCharacter :: Font -> Float -> Float -> GL.Color4 Float -> Character -> Float -> IO Float
-renderCharacter (Font chars _ vao vbo) y scale color (Character tex cSize bear adv) x = do
+
+-- | Render character to the screen
+renderCharacter :: Font -- ^ Font used
+                -> Float -- ^ y position of the character
+                -> Float -- ^ Scale
+                -> Character -- ^ Character to render
+                -> Float -- ^ x position to render at
+                -> IO Float -- ^ Advanced x position after render
+renderCharacter (Font chars _ vao vbo) y scale (Character tex cSize bear adv) x = do
 
     let (GL.TextureSize2D sX' sY') = cSize
     let (sX, sY) = (fromIntegral sX', fromIntegral sY')
