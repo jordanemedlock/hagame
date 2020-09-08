@@ -21,12 +21,6 @@ import System.FilePath.Posix (takeExtensions)
 import Graphics.Game.Hagame.Texture
 import Graphics.Game.Hagame.Shader
 
--- | Transform object
-data Transform = 
-    Transform   { position :: GL.Vector3 Float -- ^ Position
-                , size :: GL.Vector3 Float -- ^ Size
-                , rotation2D :: Float -- ^ Rotation
-                }
 
 -- | Sprite object
 data Sprite = 
@@ -37,37 +31,6 @@ data Sprite =
             , sprColor :: GL.Color4 Float -- ^ Sprite color hint
             }
 
--- | Creates the sprites VAO and adds the goemetry
-createSpriteVAO :: IO GL.VertexArrayObject
-createSpriteVAO = do
-    
-    let verticesL = [ (-0.5), (-0.5),   0.0, 0.0
-                    , 0.5, 0.5,         1.0, 1.0
-                    , (-0.5), 0.5,      0.0, 1.0
-                    
-                    , (-0.5), (-0.5),   0.0, 0.0
-                    , 0.5, (-0.5),      1.0, 0.0
-                    , 0.5, 0.5,         1.0, 1.0
-                    ] :: [Float]
-    vertices <- newArray verticesL
-    let verticesSize = fromIntegral $ sizeOf (0.0 :: Float) * length verticesL
-
-    vao <- GL.genObjectName :: IO GL.VertexArrayObject
-    vbo <- GL.genObjectName :: IO GL.BufferObject
-
-    GL.bindVertexArrayObject $= Just vao
-
-    GL.bindBuffer GL.ArrayBuffer $= Just vbo
-    GL.bufferData GL.ArrayBuffer $= (verticesSize, vertices, GL.StaticDraw)
-
-    GL.vertexAttribPointer (GL.AttribLocation 0) $= (GL.ToFloat, GL.VertexArrayDescriptor 4 GL.Float (fromIntegral $ 4 * sizeOf (0.0 :: Float)) nullPtr)
-    GL.vertexAttribArray (GL.AttribLocation 0) $= GL.Enabled
-
-    GL.bindBuffer GL.ArrayBuffer $= Nothing
-    GL.bindVertexArrayObject $= Nothing
-    GL.deleteObjectName vbo
-
-    return vao
 
 -- | Create a sprite
 createSprite    :: Shader -- ^ The sprite shader
@@ -76,7 +39,7 @@ createSprite    :: Shader -- ^ The sprite shader
                 -> GL.Color4 Float -- ^ The sprite's color hint
                 -> IO Sprite
 createSprite shader texture transform color = do
-    vao <- createSpriteVAO
+    vao <- createSquareVAO
     return $ Sprite shader vao texture transform color
 
 -- | Draw the sprite to the OpenGL context
@@ -97,15 +60,6 @@ drawSprite (Sprite shader vao texture transform color) = do
     GL.drawArrays GL.Triangles 0 6
     GL.bindVertexArrayObject $= Nothing
 
-
--- | Create a 4x4 transformation matrix from Transform object
-getTransformMatrix :: Transform -> M.Matrix Float
-getTransformMatrix (Transform pos size rot) = model
-    where 
-        translate = translationMat pos
-        rotate = rotationMat2D (pi / 180 * rot)
-        scale = scaleMat size
-        model = translate * rotate * scale
 
 -- | Helper function to rotate the sprite
 rotateSprite :: Sprite -> Float -> Sprite
