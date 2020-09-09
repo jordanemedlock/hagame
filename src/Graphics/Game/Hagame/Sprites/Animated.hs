@@ -102,3 +102,12 @@ fixSize (GL.Vector2 w h) (GL.Vector3 x y z)
     | abs x < 0.01 = (GL.Vector3 (realToFrac w * y / realToFrac h) y z)
     | abs y < 0.01 = (GL.Vector3 x (realToFrac h * x / realToFrac w) z)
     | otherwise = (GL.Vector3 x y z)
+
+
+
+-- TODO: Theres a better way to do this (duplicated from Sprite, I guess every sprite is animated...)
+updateASpritePos :: AnimatedSprite -> (GL.Vector3 Float -> GL.Vector3 Float) -> AnimatedSprite
+updateASpritePos sprite f = sprite { asprTransform = trans { position = f pos }}
+    where
+        trans = asprTransform sprite
+        pos = position trans

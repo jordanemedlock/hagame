@@ -1,6 +1,6 @@
 module Graphics.Game.Hagame.Sprites (
       Transform(..), Sprite(..)
-    , createSprite, drawSprite, deleteSprite, rotateSprite, moveSprite
+    , createSprite, renderSprite, deleteSprite, rotateSprite, moveSprite, updateSpritePos
 ) where
 
 
@@ -35,7 +35,7 @@ data Sprite =
 -- | Create a sprite
 createSprite    :: Shader -- ^ The sprite shader
                 -> Texture -- ^ The sprite's texture
-                -> Transform -- ^ The sprite's global transform
+                -> Transform -- ^ The sprite's global transform (center origin)
                 -> GL.Color4 Float -- ^ The sprite's color hint
                 -> IO Sprite
 createSprite shader texture transform color = do
@@ -43,8 +43,8 @@ createSprite shader texture transform color = do
     return $ Sprite shader vao texture transform color
 
 -- | Draw the sprite to the OpenGL context
-drawSprite :: Sprite -> IO ()
-drawSprite (Sprite shader vao texture transform color) = do
+renderSprite :: Sprite -> IO ()
+renderSprite (Sprite shader vao texture transform color) = do
     model <- toGLMatrix $ getTransformMatrix transform
     
     useShader shader
@@ -70,11 +70,14 @@ rotateSprite sprite rot = sprite { sprTransform = trans { rotation2D = rot' } }
 
 -- | Helper function to move the sprite
 moveSprite :: Sprite -> GL.Vector3 Float -> Sprite
-moveSprite sprite (GL.Vector3 dx dy dz) = sprite { sprTransform = trans { position = pos } }
+moveSprite sprite (GL.Vector3 dx dy dz) = updateSpritePos sprite (\(GL.Vector3 x y z) -> GL.Vector3 (x + dx) (y + dy) (z + dy))
+
+
+updateSpritePos :: Sprite -> (GL.Vector3 Float -> GL.Vector3 Float) -> Sprite
+updateSpritePos sprite f = sprite { sprTransform = trans { position = f pos }}
     where
         trans = sprTransform sprite
-        (GL.Vector3 x y z) = position trans
-        pos = (GL.Vector3 (x + dx) (y + dy) (z + dz))
+        pos = position trans
 
 -- | Delete the sprite
 deleteSprite :: Sprite -> IO ()

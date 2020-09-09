@@ -7,12 +7,12 @@ module Graphics.Game.Hagame.Game (
 import qualified Graphics.UI.GLFW as GLFW
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
-import Data.Time (getCurrentTime, diffUTCTime)
+import Data.Time (getCurrentTime, diffUTCTime, NominalDiffTime)
 
 
 type DebugCallback = GL.DebugMessage -> IO ()
 type InitializeCallback a = Maybe a -> IO (Maybe a) 
-type UpdateCallback a = Maybe a -> GLFW.Window -> Float -> IO (Maybe a)
+type UpdateCallback a = Maybe a -> GLFW.Window -> Double -> IO (Maybe a)
 type RenderCallback a = Maybe a -> IO ()
 type DeleteCallback a = Maybe a -> IO ()
 
@@ -117,9 +117,10 @@ mainLoop gameOptions window state previousTime = do
     GL.clear [GL.ColorBuffer, GL.DepthBuffer]
 
     thisTime <- getCurrentTime
-    let deltaTime = realToFrac $ diffUTCTime thisTime previousTime
+    let deltaTime = diffUTCTime thisTime previousTime
+    let dt = (realToFrac deltaTime :: Double)
 
-    state <- updateGame gameOptions state window deltaTime
+    state <- updateGame gameOptions state window dt
 
     renderGame gameOptions state
 
