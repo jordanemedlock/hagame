@@ -41,7 +41,9 @@ createAnimatedSprite anims current shader transform color = do
 
     animations <- Map.fromList <$> mapM (\(k, f, i, d, l) -> (k,)<$>createAnimation f i d l) anims
 
-    return $ AnimatedSprite animations (Just current) shader vao transform color
+    let fixedSize = fixSize (texSize $ head $ animTextures $ head $ Map.elems $ animations) (size transform)
+
+    return $ AnimatedSprite animations (Just current) shader vao (transform { size = fixedSize }) color
 
 updateAnimation :: Float -> Animation -> Animation
 updateAnimation deltaTime (Animation texts True dur currentTime)
@@ -81,8 +83,8 @@ renderAnimatedSprite aspr = do
             useShader shader
 
             let transform = asprTransform aspr
-            let fixedSize = fixSize (texSize texture) (size transform)
-            model <- toGLMatrix $ getTransformMatrix $ transform { size = fixedSize }
+            -- let fixedSize = fixSize (texSize texture) (size transform)
+            model <- toGLMatrix $ getTransformMatrix $ transform  -- { size = fixedSize }
             
 
             uniform shader "model" $= model
@@ -106,8 +108,14 @@ fixSize (GL.Vector2 w h) (GL.Vector3 x y z)
 
 
 -- TODO: Theres a better way to do this (duplicated from Sprite, I guess every sprite is animated...)
-updateASpritePos :: AnimatedSprite -> (GL.Vector3 Float -> GL.Vector3 Float) -> AnimatedSprite
-updateASpritePos sprite f = sprite { asprTransform = trans { position = f pos }}
+updateASpritePos :: (GL.Vector3 Float -> GL.Vector3 Float) -> AnimatedSprite -> AnimatedSprite
+updateASpritePos f sprite = sprite { asprTransform = trans { position = f pos }}
     where
         trans = asprTransform sprite
         pos = position trans
+
+updateASpriteScale :: (GL.Vector3 Float -> GL.Vector3 Float) -> AnimatedSprite -> AnimatedSprite
+updateASpriteScale f sprite = sprite { asprTransform = trans { size = f s }}
+    where
+        trans = asprTransform sprite
+        s = size trans
