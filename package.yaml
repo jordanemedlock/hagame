@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/jord
 
 dependencies:
 - base >= 4.7 && < 5
+- rio >=0.1.18 && <0.2
 - bytestring >=0.10 && <1
 - GLFW-b >=3.3 && <4
 - OpenGL >=3.0 && <4
@@ -32,6 +33,11 @@ dependencies:
 - time >=1.9 && <2
 - freetype2 >=0.2 && <0.3
 - containers >=0.6 && <0.7
+
+default-extensions:
+- NoImplicitPrelude
+- OverloadedStrings
+- BlockArguments
 
 library:
   source-dirs: src

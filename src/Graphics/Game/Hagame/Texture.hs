@@ -2,14 +2,14 @@ module Graphics.Game.Hagame.Texture (
     loadTexture, bindTexture, Texture(texSize)
 ) where
 
-
+import RIO
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
 import Foreign.Marshal.Array
 import Foreign.Ptr
 import Foreign.Storable
-import GHC.Int
-import Data.Word
+-- import GHC.Int
+-- import Data.Word
 import qualified Data.Matrix as M
 import Graphics.Game.Hagame.Utils
 import Codec.Picture (readImage, generateImage, convertRGBA8, DynamicImage(..), Image(..), PixelRGBA8(..), readPng)
@@ -49,15 +49,15 @@ bindTexture (Texture texId _) = do
     GL.textureBinding GL.Texture2D $= Just texId
 
 -- | Loads the texture from a png file
-loadTexture :: String -- ^ Filename
-            -> IO (Either String Texture)
+loadTexture :: HasLogFunc env
+            => String -- ^ Filename
+            -> RIO env Texture
 loadTexture filename = do
-    eimage <- readImage filename
+    eimage <- liftIO $ readImage filename
 
     case eimage of
-        Left msg -> do
-            putStrLn msg
-            return $ Left msg
+        Left msg -> throwString msg
+            
         Right image -> do
             let rgbPixel = convertRGBA8 image
             
@@ -65,5 +65,5 @@ loadTexture filename = do
             let height = fromIntegral $ imageHeight rgbPixel
             let idata = imageData rgbPixel :: VS.Vector Word8
 
-            Right <$> (VS.unsafeWith idata $ \ptr -> 
+            liftIO $ (VS.unsafeWith idata $ \ptr -> 
                 createTexture width height (GL.PixelData GL.RGBA GL.UnsignedByte ptr))

@@ -3,20 +3,20 @@ module Graphics.Game.Hagame.Sprites (
     , createSprite, renderSprite, deleteSprite, rotateSprite, moveSprite, updateSpritePos
 ) where
 
-
+import RIO
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
 import Foreign.Marshal.Array
 import Foreign.Ptr
 import Foreign.Storable
-import GHC.Int
-import Data.Word
+-- import GHC.Int
+-- import Data.Word
 import qualified Data.Matrix as M
 import Graphics.Game.Hagame.Utils
 import Codec.Picture (readImage, generateImage, convertRGBA8, DynamicImage(..), Image(..), PixelRGBA8(..), readPng)
 import Codec.Picture.Types (promoteImage)
 import qualified Data.Vector.Storable as VS
-import qualified Data.ByteString as BS
+-- import qualified Data.ByteString as BS
 import System.FilePath.Posix (takeExtensions)
 import Graphics.Game.Hagame.Texture
 import Graphics.Game.Hagame.Shader
@@ -37,14 +37,14 @@ createSprite    :: Shader -- ^ The sprite shader
                 -> Texture -- ^ The sprite's texture
                 -> Transform -- ^ The sprite's global transform (center origin)
                 -> GL.Color4 Float -- ^ The sprite's color hint
-                -> IO Sprite
+                -> RIO env Sprite
 createSprite shader texture transform color = do
-    vao <- createSquareVAO
+    vao <- liftIO createSquareVAO
     return $ Sprite shader vao texture transform color
 
 -- | Draw the sprite to the OpenGL context
-renderSprite :: Sprite -> IO ()
-renderSprite (Sprite shader vao texture transform color) = do
+renderSprite :: Sprite -> RIO env ()
+renderSprite (Sprite shader vao texture transform color) = liftIO do
     model <- toGLMatrix $ getTransformMatrix transform
     
     useShader shader

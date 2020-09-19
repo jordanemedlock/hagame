@@ -2,6 +2,8 @@
 
 module Graphics.Game.Hagame.Sprites.Animated where
 
+import RIO
+import RIO.List.Partial ((!!), head)
 import Graphics.Game.Hagame.Sprites
 import Graphics.Game.Hagame.Shader
 import Graphics.Game.Hagame.Texture
@@ -29,15 +31,15 @@ data AnimatedSprite =
                     , asprColor :: GL.Color4 Float
                     }
 
-createAnimation :: String -> Int -> Float -> Bool -> IO Animation
+createAnimation :: HasLogFunc env => String -> Int -> Float -> Bool -> RIO env Animation
 createAnimation filePattern num duration loop = do
-    textures <- rights <$> mapM (loadTexture.(printf filePattern)) [0..num-1]
+    textures <- mapM (loadTexture.(printf filePattern)) [0..num-1]
 
     return (Animation textures loop duration 0.0)
 
-createAnimatedSprite :: [(String, String, Int, Float, Bool)] -> String -> Shader -> Transform -> GL.Color4 Float -> IO AnimatedSprite
+createAnimatedSprite :: HasLogFunc env => [(String, String, Int, Float, Bool)] -> String -> Shader -> Transform -> GL.Color4 Float -> RIO env AnimatedSprite
 createAnimatedSprite anims current shader transform color = do
-    vao <- createSquareVAO
+    vao <- liftIO createSquareVAO
 
     animations <- Map.fromList <$> mapM (\(k, f, i, d, l) -> (k,)<$>createAnimation f i d l) anims
 
@@ -71,8 +73,8 @@ updateAnimatedSprite _ aspr@(AnimatedSprite anims Nothing _ _ _ _) = aspr
 updateAnimatedSprite deltaTime aspr@(AnimatedSprite anims (Just str) _ _ _ _) = aspr { asprAnimations = animations }
     where animations = Map.update (Just . updateAnimation deltaTime) str anims
 
-renderAnimatedSprite :: AnimatedSprite -> IO ()
-renderAnimatedSprite aspr = do
+renderAnimatedSprite :: AnimatedSprite -> RIO env ()
+renderAnimatedSprite aspr = liftIO do
 
     case getCurrentTexture <$> getCurrentAnimation aspr of
         Nothing -> return () 

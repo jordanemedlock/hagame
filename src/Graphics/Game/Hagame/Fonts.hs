@@ -5,14 +5,16 @@ module Graphics.Game.Hagame.Fonts (
     , loadFont, renderString
 ) where
 
+import RIO
+import RIO.List.Partial ((!!))
 import FreeType
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
-import GHC.Int (Int32, Int64)
+-- import GHC.Int (Int32, Int64)
 import Foreign.Storable (peek, sizeOf)
 import Foreign.Ptr (nullPtr)
 import Foreign.Marshal.Array (newArray)
-import Control.Monad (foldM_)
+-- import Control.Monad (foldM_)
 import Graphics.Game.Hagame.Shader (Shader, useShader, uniform)
 
 -- | 'Character' data type for fonts, contains everthing to render a 'Char'
