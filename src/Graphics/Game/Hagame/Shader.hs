@@ -1,11 +1,25 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Graphics.Game.Hagame.Shader (
     loadShader, useShader, clearShader, deleteShader, uniform, Shader
 ) where
+
+import RIO
 
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
 import qualified Data.ByteString as BS
 import System.FilePath.Posix (takeExtensions)
+
+data ShaderError =
+    ShaderWrongFileType String
+    | ShaderCompileFailed String
+    | ShaderLinkFailed
+    deriving Show
+
+instance Exception ShaderError
 
 -- | Wraps an OpenGL program 
 data Shader = Shader GL.Program
@@ -14,23 +28,26 @@ data Shader = Shader GL.Program
 loadShader  :: String -- ^ Vertex shader file location.  Must be *.vert
             -> String -- ^ Fragment shader file location.  Must be *.frag
             -> Maybe String -- ^ Optional Geometry file location.  Must be *.geom
-            -> IO (Maybe Shader)
-loadShader vertexFile fragmentFile mGeometryFile = do
-    putStrLn "Reading Shader Files"
-    if ((takeExtensions vertexFile) /= ".vert" && (takeExtensions fragmentFile) /= ".frag")
-        then return Nothing
-        else do
-            vertexSource <- BS.readFile vertexFile
-            fragmentSource <- BS.readFile fragmentFile
-            mGeometrySource <- mapM BS.readFile mGeometryFile
+            -> RIO env Shader
+loadShader vertexFile fragmentFile mGeometryFile = liftIO do
+    when ((takeExtensions vertexFile) /= ".vert" && (takeExtensions fragmentFile) /= ".frag") do
+        let msg = concat    [ vertexFile ++ " should have extension .vert\n"
+                            , fragmentFile ++ " should have extension .frag\n"
+                            ]
 
-            compileShader vertexSource fragmentSource mGeometrySource
+        throwIO $ ShaderWrongFileType msg
+
+    vertexSource <- BS.readFile vertexFile
+    fragmentSource <- BS.readFile fragmentFile
+    mGeometrySource <- mapM BS.readFile mGeometryFile
+
+    compileShader vertexSource fragmentSource mGeometrySource
 
 -- | Compiles shader from its strings
 compileShader   :: BS.ByteString -- ^ Vertex Soure
                 -> BS.ByteString -- ^ Fragment Source
                 -> Maybe BS.ByteString -- ^ Optional Geometry Source
-                -> IO (Maybe Shader)
+                -> IO Shader
 compileShader vertexSource fragmentSource mGeometrySource = do
     vertex <- GL.createShader GL.VertexShader
     fragment <- GL.createShader GL.FragmentShader
@@ -65,12 +82,13 @@ compileShader vertexSource fragmentSource mGeometrySource = do
                 Just geometry -> GL.get $ GL.shaderInfoLog geometry
                 Nothing -> return ""
 
-            putStrLn "Failed to compile shaders with message: "
-            putStrLn $ "Vertex Shader: " ++ vertexInfoLog
-            putStrLn $ "Fragment Shader: " ++ fragmentInfoLog
-            putStrLn $ "Geometry Shader: " ++ geometryInfoLog
+            let msg = concat    [ "Failed to compile shaders with message: \n"
+                                , "Vertex Shader: ", vertexInfoLog, "\n"
+                                , "Fragment Shader: ", fragmentInfoLog, "\n"
+                                , "Geometry Shader: ", geometryInfoLog, "\n"
+                                ]
 
-            return Nothing
+            throwIO $ ShaderCompileFailed msg
         else do
             program <- GL.createProgram
 
@@ -86,8 +104,8 @@ compileShader vertexSource fragmentSource mGeometrySource = do
                 then do
                     GL.deleteObjectNames $ [vertex, fragment] ++ maybe [] (:[]) mGeometry
 
-                    return $ Just $ Shader program
-                else return Nothing
+                    return $ Shader program
+                else throwIO $ ShaderLinkFailed --  "Program faailed to link"
 
 -- | Sets the OpenGL current shader
 useShader :: Shader -> IO ()

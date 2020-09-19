@@ -1,18 +1,22 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Graphics.Game.Hagame.Fonts (
       Character(charSize, charBearing, charAdvancement), Font(fontCharacters, fontShader)
     , loadFont, renderString
 ) where
 
+import RIO
+import RIO.List.Partial ((!!))
 import FreeType
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
-import GHC.Int (Int32, Int64)
+-- import GHC.Int (Int32, Int64)
 import Foreign.Storable (peek, sizeOf)
 import Foreign.Ptr (nullPtr)
 import Foreign.Marshal.Array (newArray)
-import Control.Monad (foldM_)
+-- import Control.Monad (foldM_)
 import Graphics.Game.Hagame.Shader (Shader, useShader, uniform)
 
 -- | 'Character' data type for fonts, contains everthing to render a 'Char'
@@ -35,19 +39,22 @@ data Font =
 loadFont    :: String   -- ^ Filename
             -> Int      -- ^ Font size/height in pixels
             -> Shader   -- ^ Glyph shader to render the font
-            -> IO Font
-loadFont name height shader = ft_With_FreeType $ \ft -> 
-    ft_With_Face ft name 0 $ \face -> do
+            -> RIO env Font
+loadFont name height shader = liftIO $ withFontFace name $ \ft face -> do
+    GL.rowAlignment GL.Unpack $= 1
 
-        GL.rowAlignment GL.Unpack $= 1
+    ft_Set_Pixel_Sizes face 0 (fromIntegral height)
 
-        ft_Set_Pixel_Sizes face 0 (fromIntegral height)
+    chars <- mapM (loadChar face) [0..127]
 
-        chars <- mapM (loadChar face) [0..127]
+    (vao, vbo) <- loadFontVAOVBO
 
-        (vao, vbo) <- loadFontVAOVBO
+    return $ Font chars shader vao vbo
 
-        return $ Font chars shader vao vbo
+withFontFace :: String -> (FT_Library -> FT_Face -> IO a) -> IO a
+withFontFace name f = ft_With_FreeType $ \ft ->
+    ft_With_Face ft name 0 $ \face -> 
+        f ft face
 
 -- | Load the VAO and VBO objects and sets them up
 loadFontVAOVBO :: IO (GL.VertexArrayObject, GL.BufferObject)

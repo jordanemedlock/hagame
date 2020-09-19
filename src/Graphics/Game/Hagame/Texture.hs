@@ -16,6 +16,12 @@ import Codec.Picture (readImage, generateImage, convertRGBA8, DynamicImage(..), 
 import Codec.Picture.Types (promoteImage)
 import qualified Data.Vector.Storable as VS
 
+
+class HasTextures env where
+    getTexture :: MonadIO m => String -> env -> m (Maybe Texture)
+    setTexture :: MonadIO m => String -> Maybe Texture -> env -> m ()
+
+
 -- | Texture wrapper
 data Texture = 
     Texture { texId :: GL.TextureObject -- ^ OpenGL texture ID

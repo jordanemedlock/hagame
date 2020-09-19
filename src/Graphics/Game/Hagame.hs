@@ -6,6 +6,7 @@ module Graphics.Game.Hagame (
     , module Graphics.Game.Hagame.Utils
     , module Graphics.Game.Hagame.Game
     , module Graphics.Game.Hagame.Fonts
+    , module Graphics.Game.Hagame.ResourceManager
 
     , Vector2(..), Vector3(..), Color4(..), ($=)
     , getKey, getMouseButton, getCursorPos, Key(..), KeyState(..), Window
@@ -18,6 +19,7 @@ import Graphics.Game.Hagame.Texture
 import Graphics.Game.Hagame.Utils hiding (createSquareVAO)
 import Graphics.Game.Hagame.Game
 import Graphics.Game.Hagame.Fonts
+import Graphics.Game.Hagame.ResourceManager
 
 import Graphics.Rendering.OpenGL (Vector2(..), Vector3(..), Color4(..), ($=))
 import Graphics.UI.GLFW (getKey, getMouseButton, getCursorPos, Key(..), KeyState(..), Window)
