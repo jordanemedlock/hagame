@@ -96,15 +96,15 @@ compileShader vertexSource fragmentSource mGeometrySource = do
                 else throwString "Failed to load program"
 
 -- | Sets the OpenGL current shader
-useShader :: Shader -> IO ()
+useShader :: MonadIO m => Shader -> m ()
 useShader (Shader shader) = GL.currentProgram $= Just shader
 
 -- | Clears the OpenGL current shader
-clearShader :: IO ()
+clearShader :: MonadIO m => m ()
 clearShader = GL.currentProgram $= Nothing
 
 -- | Deletes the shader
-deleteShader :: Shader -> IO ()
+deleteShader :: MonadIO m => Shader -> m ()
 deleteShader (Shader shader) = GL.deleteObjectName shader
 
 -- | Sets/gets the uniform value for shader

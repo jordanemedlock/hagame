@@ -16,10 +16,10 @@ data Transform =
                 }
 
 -- | Create an OpenGL matrix from the Matrix
-toGLMatrix  :: GL.MatrixComponent a
+toGLMatrix  :: (MonadIO m, GL.MatrixComponent a)
             => M.Matrix a  -- ^ Input Matrix
-            -> IO (GL.GLmatrix a) -- ^ Output GLmatrix
-toGLMatrix mat = GL.newMatrix GL.RowMajor (M.toList mat)
+            -> m (GL.GLmatrix a) -- ^ Output GLmatrix
+toGLMatrix mat = liftIO $ GL.newMatrix GL.RowMajor (M.toList mat)
 
 
 -- | Creates a 4x4 transform matrix representing a translation 
@@ -65,7 +65,7 @@ orthographic left right bottom top near far = mat
 
 
 -- | Creates the sprites VAO and adds the goemetry
-createSquareVAO :: IO GL.VertexArrayObject
+createSquareVAO :: MonadIO m => m GL.VertexArrayObject
 createSquareVAO = do
     
     let verticesL = [ (-0.5), (-0.5),   0.0, 0.0
@@ -76,11 +76,11 @@ createSquareVAO = do
                     , 0.5, (-0.5),      1.0, 0.0
                     , 0.5, 0.5,         1.0, 1.0
                     ] :: [Float]
-    vertices <- newArray verticesL
+    vertices <- liftIO $ newArray verticesL
     let verticesSize = fromIntegral $ sizeOf (0.0 :: Float) * length verticesL
 
-    vao <- GL.genObjectName :: IO GL.VertexArrayObject
-    vbo <- GL.genObjectName :: IO GL.BufferObject
+    vao <- GL.genObjectName
+    vbo <- GL.genObjectName
 
     GL.bindVertexArrayObject $= Just vao
 

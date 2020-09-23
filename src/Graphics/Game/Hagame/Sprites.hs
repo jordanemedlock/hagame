@@ -80,5 +80,5 @@ updateSpritePos sprite f = sprite { sprTransform = trans { position = f pos }}
         pos = position trans
 
 -- | Delete the sprite
-deleteSprite :: Sprite -> IO ()
+deleteSprite :: MonadIO m => Sprite -> m ()
 deleteSprite = GL.deleteObjectName . sprVAO

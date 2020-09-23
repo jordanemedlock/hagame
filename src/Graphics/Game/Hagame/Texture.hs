@@ -23,17 +23,18 @@ data Texture =
             }
 
 -- | Create a texture using the pixel data
-createTexture   :: Int -- ^ Texture width
+createTexture   :: MonadIO m 
+                => Int -- ^ Texture width
                 -> Int -- ^ Texture height
                 -> GL.PixelData a -- ^ Texture pixel data
-                -> IO Texture
+                -> m Texture
 createTexture width height textureData = do
-    texId <- GL.genObjectName :: IO GL.TextureObject
+    texId <- GL.genObjectName
 
     GL.textureBinding GL.Texture2D $= Just texId
 
     let size = GL.TextureSize2D (fromIntegral width) (fromIntegral height)
-    GL.texImage2D GL.Texture2D GL.NoProxy 0 GL.RGBA8 size 0 textureData
+    liftIO $ GL.texImage2D GL.Texture2D GL.NoProxy 0 GL.RGBA8 size 0 textureData
 
     GL.textureWrapMode GL.Texture2D GL.S $= (GL.Repeated, GL.Repeat)
     GL.textureWrapMode GL.Texture2D GL.T $= (GL.Repeated, GL.Repeat)
@@ -44,7 +45,7 @@ createTexture width height textureData = do
     return $ Texture texId (GL.Vector2 width height)
 
 -- | Binds the texture to the OpenGL context
-bindTexture :: Texture -> IO ()
+bindTexture :: MonadIO m => Texture -> m ()
 bindTexture (Texture texId _) = do
     GL.textureBinding GL.Texture2D $= Just texId
 

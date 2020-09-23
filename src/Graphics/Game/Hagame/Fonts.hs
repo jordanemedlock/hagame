@@ -52,10 +52,10 @@ loadFont name height shader = liftIO $ ft_With_FreeType $ \ft ->
         return $ Font chars shader vao vbo
 
 -- | Load the VAO and VBO objects and sets them up
-loadFontVAOVBO :: IO (GL.VertexArrayObject, GL.BufferObject)
+loadFontVAOVBO :: MonadIO m => m (GL.VertexArrayObject, GL.BufferObject)
 loadFontVAOVBO = do
-    vao <- GL.genObjectName :: IO GL.VertexArrayObject
-    vbo <- GL.genObjectName :: IO GL.BufferObject
+    vao <- GL.genObjectName 
+    vbo <- GL.genObjectName 
 
     GL.bindVertexArrayObject $= Just vao
     
@@ -71,13 +71,14 @@ loadFontVAOVBO = do
     return (vao, vbo)
 
 -- | Load the font into a 'Character' object
-loadChar    :: FT_Face -- ^ FreeType font object
+loadChar    :: MonadIO m
+            => FT_Face -- ^ FreeType font object
             -> Int -- ^ ASCII character code 
-            -> IO Character
-loadChar pFace c = do
+            -> m Character
+loadChar pFace c = liftIO do
     ft_Load_Char pFace (fromIntegral c) FT_LOAD_RENDER
 
-    texId <- GL.genObjectName :: IO GL.TextureObject
+    texId <- GL.genObjectName
 
     GL.textureBinding GL.Texture2D $= Just texId
 
