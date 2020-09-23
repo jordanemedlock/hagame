@@ -37,8 +37,8 @@ data Font =
 loadFont    :: String   -- ^ Filename
             -> Int      -- ^ Font size/height in pixels
             -> Shader   -- ^ Glyph shader to render the font
-            -> IO Font
-loadFont name height shader = ft_With_FreeType $ \ft -> 
+            -> RIO env Font
+loadFont name height shader = liftIO $ ft_With_FreeType $ \ft -> 
     ft_With_Face ft name 0 $ \face -> do
 
         GL.rowAlignment GL.Unpack $= 1
@@ -102,22 +102,24 @@ renderString    :: Font -- ^ Font to used to render string
                 -> GL.Vector2 Float -- ^ Render position
                 -> Float -- ^ Scale relative to loaded font size
                 -> GL.Color4 Float -- ^ Font color
-                -> IO ()
+                -> RIO env ()
 renderString font@(Font chars shader vao vbo) string pos scale color = do
 
-    useShader shader
+    liftIO do
+        useShader shader
 
-    uniform shader "textColor" $= color 
+        uniform shader "textColor" $= color 
 
-    GL.activeTexture $= GL.TextureUnit 0
-    GL.bindVertexArrayObject $= Just vao
+        GL.activeTexture $= GL.TextureUnit 0
+        GL.bindVertexArrayObject $= Just vao
 
     let (GL.Vector2 x y) = pos
 
     foldM_ (\x c -> renderCharacter font y scale (chars !! fromEnum c) x) x string
 
-    GL.bindVertexArrayObject $= Nothing
-    GL.textureBinding GL.Texture2D $= Nothing
+    liftIO do
+        GL.bindVertexArrayObject $= Nothing
+        GL.textureBinding GL.Texture2D $= Nothing
 
 
 -- | Render character to the screen
@@ -126,8 +128,8 @@ renderCharacter :: Font -- ^ Font used
                 -> Float -- ^ Scale
                 -> Character -- ^ Character to render
                 -> Float -- ^ x position to render at
-                -> IO Float -- ^ Advanced x position after render
-renderCharacter (Font chars _ vao vbo) y scale (Character tex cSize bear adv) x = do
+                -> RIO env Float -- ^ Advanced x position after render
+renderCharacter (Font chars _ vao vbo) y scale (Character tex cSize bear adv) x = liftIO do
 
     let (GL.TextureSize2D sX' sY') = cSize
     let (sX, sY) = (fromIntegral sX', fromIntegral sY')
