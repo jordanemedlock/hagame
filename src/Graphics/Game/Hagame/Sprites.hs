@@ -33,18 +33,19 @@ data Sprite =
 
 
 -- | Create a sprite
-createSprite    :: Shader -- ^ The sprite shader
+createSprite    :: MonadIO m
+                => Shader -- ^ The sprite shader
                 -> Texture -- ^ The sprite's texture
                 -> Transform -- ^ The sprite's global transform (center origin)
                 -> GL.Color4 Float -- ^ The sprite's color hint
-                -> RIO env Sprite
+                -> m Sprite
 createSprite shader texture transform color = do
-    vao <- liftIO createSquareVAO
+    vao <- createSquareVAO
     return $ Sprite shader vao texture transform color
 
 -- | Draw the sprite to the OpenGL context
-renderSprite :: Sprite -> RIO env ()
-renderSprite (Sprite shader vao texture transform color) = liftIO do
+renderSprite :: MonadIO m => Sprite -> m ()
+renderSprite (Sprite shader vao texture transform color) = do
     model <- toGLMatrix $ getTransformMatrix transform
     
     useShader shader
@@ -57,7 +58,7 @@ renderSprite (Sprite shader vao texture transform color) = liftIO do
     bindTexture texture
 
     GL.bindVertexArrayObject $= Just vao
-    GL.drawArrays GL.Triangles 0 6
+    liftIO $ GL.drawArrays GL.Triangles 0 6
     GL.bindVertexArrayObject $= Nothing
 
 

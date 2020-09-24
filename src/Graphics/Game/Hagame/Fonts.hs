@@ -34,22 +34,36 @@ data Font =
             }
 
 -- | Load a font from a TTF file 
-loadFont    :: String   -- ^ Filename
+loadFont    :: MonadIO m 
+            => String   -- ^ Filename
             -> Int      -- ^ Font size/height in pixels
             -> Shader   -- ^ Glyph shader to render the font
-            -> RIO env Font
-loadFont name height shader = liftIO $ ft_With_FreeType $ \ft -> 
-    ft_With_Face ft name 0 $ \face -> do
+            -> m Font
+loadFont name height shader = withFontFace name $ \lib face -> do
+    GL.rowAlignment GL.Unpack $= 1
 
-        GL.rowAlignment GL.Unpack $= 1
+    liftIO $ ft_Set_Pixel_Sizes face 0 (fromIntegral height)
 
-        ft_Set_Pixel_Sizes face 0 (fromIntegral height)
+    chars <- mapM (loadChar face) [0..127]
 
-        chars <- mapM (loadChar face) [0..127]
+    (vao, vbo) <- loadFontVAOVBO
 
-        (vao, vbo) <- loadFontVAOVBO
+    return $ Font chars shader vao vbo
 
-        return $ Font chars shader vao vbo
+withFontFace :: MonadIO m 
+             => String 
+             -> (FT_Library -> FT_Face -> m a)
+             -> m a 
+withFontFace name f = do
+    lib <- liftIO $ ft_Init_FreeType
+    face <- liftIO $ ft_New_Face lib name 0 
+
+    ret <- f lib face
+
+    liftIO $ ft_Done_Face face
+    liftIO $ ft_Done_FreeType lib
+
+    return ret
 
 -- | Load the VAO and VBO objects and sets them up
 loadFontVAOVBO :: MonadIO m => m (GL.VertexArrayObject, GL.BufferObject)
@@ -98,39 +112,39 @@ loadChar pFace c = liftIO do
     return $ Character texId textureSize (GL.Vector2 (gsrBitmap_left glyph) (gsrBitmap_top glyph)) (fromIntegral $ vX $ gsrAdvance glyph)
 
 -- | Render string to the OpenGL context using the provided font
-renderString    :: Font -- ^ Font to used to render string
+renderString    :: MonadIO m
+                => Font -- ^ Font to used to render string
                 -> String -- ^ String to render
                 -> GL.Vector2 Float -- ^ Render position
                 -> Float -- ^ Scale relative to loaded font size
                 -> GL.Color4 Float -- ^ Font color
-                -> RIO env ()
+                -> m ()
 renderString font@(Font chars shader vao vbo) string pos scale color = do
 
-    liftIO do
-        useShader shader
+    useShader shader
 
-        uniform shader "textColor" $= color 
+    uniform shader "textColor" $= color 
 
-        GL.activeTexture $= GL.TextureUnit 0
-        GL.bindVertexArrayObject $= Just vao
+    GL.activeTexture $= GL.TextureUnit 0
+    GL.bindVertexArrayObject $= Just vao
 
     let (GL.Vector2 x y) = pos
 
     foldM_ (\x c -> renderCharacter font y scale (chars !! fromEnum c) x) x string
 
-    liftIO do
-        GL.bindVertexArrayObject $= Nothing
-        GL.textureBinding GL.Texture2D $= Nothing
+    GL.bindVertexArrayObject $= Nothing
+    GL.textureBinding GL.Texture2D $= Nothing
 
 
 -- | Render character to the screen
-renderCharacter :: Font -- ^ Font used
+renderCharacter :: MonadIO m 
+                => Font -- ^ Font used
                 -> Float -- ^ y position of the character
                 -> Float -- ^ Scale
                 -> Character -- ^ Character to render
                 -> Float -- ^ x position to render at
-                -> RIO env Float -- ^ Advanced x position after render
-renderCharacter (Font chars _ vao vbo) y scale (Character tex cSize bear adv) x = liftIO do
+                -> m Float -- ^ Advanced x position after render
+renderCharacter (Font chars _ vao vbo) y scale (Character tex cSize bear adv) x = do
 
     let (GL.TextureSize2D sX' sY') = cSize
     let (sX, sY) = (fromIntegral sX', fromIntegral sY')
@@ -151,16 +165,16 @@ renderCharacter (Font chars _ vao vbo) y scale (Character tex cSize bear adv) x 
                     , xpos + w, ypos,   1.0, 0.0
                     , xpos + w, ypos + h, 1.0, 1.0
                     ]
-    vertices <- newArray verticesL
+    vertices <- liftIO $ newArray verticesL
     let verticesSize = fromIntegral $ sizeOf (0.0 :: Float) * length verticesL
 
     GL.textureBinding GL.Texture2D $= Just tex
 
     GL.bindBuffer GL.ArrayBuffer $= Just vbo
-    GL.bufferSubData GL.ArrayBuffer GL.WriteToBuffer 0 verticesSize vertices
+    liftIO $ GL.bufferSubData GL.ArrayBuffer GL.WriteToBuffer 0 verticesSize vertices
     GL.bindBuffer GL.ArrayBuffer $= Nothing
 
-    GL.drawArrays GL.Triangles 0 6
+    liftIO $ GL.drawArrays GL.Triangles 0 6
 
     return $ x + (fromIntegral adv/64 * scale)
 

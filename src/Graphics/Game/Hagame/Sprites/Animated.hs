@@ -39,7 +39,7 @@ createAnimation filePattern num duration loop = do
 
 createAnimatedSprite :: HasLogFunc env => [(String, String, Int, Float, Bool)] -> String -> Shader -> Transform -> GL.Color4 Float -> RIO env AnimatedSprite
 createAnimatedSprite anims current shader transform color = do
-    vao <- liftIO createSquareVAO
+    vao <- createSquareVAO
 
     animations <- Map.fromList <$> mapM (\(k, f, i, d, l) -> (k,)<$>createAnimation f i d l) anims
 
@@ -74,7 +74,7 @@ updateAnimatedSprite deltaTime aspr@(AnimatedSprite anims (Just str) _ _ _ _) = 
     where animations = Map.update (Just . updateAnimation deltaTime) str anims
 
 renderAnimatedSprite :: AnimatedSprite -> RIO env ()
-renderAnimatedSprite aspr = liftIO do
+renderAnimatedSprite aspr = do
 
     case getCurrentTexture <$> getCurrentAnimation aspr of
         Nothing -> return () 
@@ -97,7 +97,7 @@ renderAnimatedSprite aspr = liftIO do
             bindTexture texture
 
             GL.bindVertexArrayObject $= Just (asprVAO aspr)
-            GL.drawArrays GL.Triangles 0 6
+            liftIO $ GL.drawArrays GL.Triangles 0 6
             GL.bindVertexArrayObject $= Nothing
 
 

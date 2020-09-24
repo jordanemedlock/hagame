@@ -35,39 +35,40 @@ compileShader   :: HasLogFunc env
                 -> Maybe ByteString -- ^ Optional Geometry Source
                 -> RIO env Shader
 compileShader vertexSource fragmentSource mGeometrySource = do
-    (v, vs, f, fs, mg, gs) <- liftIO do
-        vertex <- GL.createShader GL.VertexShader
-        fragment <- GL.createShader GL.FragmentShader
+    -- (v, vs, f, fs, mg, gs) <- liftIO do
+    vertex <- liftIO $ GL.createShader GL.VertexShader
+    fragment <- liftIO $ GL.createShader GL.FragmentShader
 
-        GL.shaderSourceBS vertex $= vertexSource
-        GL.shaderSourceBS fragment $= fragmentSource
+    GL.shaderSourceBS vertex $= vertexSource
+    GL.shaderSourceBS fragment $= fragmentSource
 
+    liftIO do
         GL.compileShader vertex
         GL.compileShader fragment
 
-        vertexStatus <- GL.get $ GL.compileStatus vertex
-        fragmentStatus <- GL.get $ GL.compileStatus fragment
+    vertexStatus <- GL.get $ GL.compileStatus vertex
+    fragmentStatus <- GL.get $ GL.compileStatus fragment
 
-        (geometryStatus, mGeometry) <- case mGeometrySource of
-            Just geometrySource -> do
-                geometry <- GL.createShader GL.GeometryShader
+    (geometryStatus, mGeometry) <- case mGeometrySource of
+        Just geometrySource -> do
+            geometry <- liftIO $ GL.createShader GL.GeometryShader
 
-                GL.shaderSourceBS geometry $= geometrySource
+            GL.shaderSourceBS geometry $= geometrySource
 
-                GL.compileShader geometry
+            liftIO $ GL.compileShader geometry
 
-                geometryStatus <- GL.get $ GL.compileStatus geometry
+            geometryStatus <- GL.get $ GL.compileStatus geometry
 
-                return (geometryStatus, Just geometry)
-            Nothing -> return (True, Nothing)
+            return (geometryStatus, Just geometry)
+        Nothing -> return (True, Nothing)
 
-        return (vertex, vertexStatus, fragment, fragmentStatus, mGeometry, geometryStatus)
+        -- return (vertex, vertexStatus, fragment, fragmentStatus, mGeometry, geometryStatus)
 
-    if (not $ vs && fs && gs)
+    if (not $ vertexStatus && fragmentStatus && geometryStatus)
         then do
-            vertexInfoLog <- liftIO $ GL.get $ GL.shaderInfoLog v
-            fragmentInfoLog <- liftIO $ GL.get $ GL.shaderInfoLog f
-            geometryInfoLog <- liftIO $ case mg of
+            vertexInfoLog <- liftIO $ GL.get $ GL.shaderInfoLog vertex
+            fragmentInfoLog <- liftIO $ GL.get $ GL.shaderInfoLog fragment
+            geometryInfoLog <- liftIO $ case mGeometry of
                 Just geometry -> GL.get $ GL.shaderInfoLog geometry
                 Nothing -> return ""
 
@@ -80,9 +81,9 @@ compileShader vertexSource fragmentSource mGeometrySource = do
         else liftIO do
             program <- GL.createProgram
 
-            GL.attachShader program v
-            GL.attachShader program f
-            mapM (GL.attachShader program) mg
+            GL.attachShader program vertex
+            GL.attachShader program fragment
+            mapM (GL.attachShader program) mGeometry
 
             GL.linkProgram program
 
@@ -90,7 +91,7 @@ compileShader vertexSource fragmentSource mGeometrySource = do
 
             if programStatus
                 then do
-                    GL.deleteObjectNames $ [v, f] ++ maybe [] (:[]) mg
+                    GL.deleteObjectNames $ [vertex, fragment] ++ maybe [] (:[]) mGeometry
 
                     return $ Shader program
                 else throwString "Failed to load program"
