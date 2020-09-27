@@ -1,5 +1,5 @@
 module Graphics.Game.Hagame.Texture (
-    loadTexture, bindTexture, Texture(texSize)
+    loadTexture, bindTexture, Texture(texSize), clearTexture, HasTextures(..)
 ) where
 
 import RIO
@@ -21,6 +21,9 @@ data Texture =
     Texture { texId :: GL.TextureObject -- ^ OpenGL texture ID
             , texSize :: GL.Vector2 Int -- ^ Texture size
             }
+
+class HasTextures env where
+    textureVar :: env -> String -> GL.StateVar Texture
 
 -- | Create a texture using the pixel data
 createTexture   :: MonadIO m 
@@ -49,11 +52,16 @@ bindTexture :: MonadIO m => Texture -> m ()
 bindTexture (Texture texId _) = do
     GL.textureBinding GL.Texture2D $= Just texId
 
+clearTexture :: MonadIO m => m ()
+clearTexture = do
+    GL.textureBinding GL.Texture2D $= Nothing
+
 -- | Loads the texture from a png file
-loadTexture :: HasLogFunc env
-            => String -- ^ Filename
+loadTexture :: (HasLogFunc env, HasTextures env)
+            => String -- ^ Resource name
+            -> String -- ^ Filename
             -> RIO env Texture
-loadTexture filename = do
+loadTexture name filename = do
     eimage <- liftIO $ readImage filename
 
     case eimage of
@@ -66,5 +74,10 @@ loadTexture filename = do
             let height = fromIntegral $ imageHeight rgbPixel
             let idata = imageData rgbPixel :: VS.Vector Word8
 
-            liftIO $ (VS.unsafeWith idata $ \ptr -> 
+            texture <- liftIO $ (VS.unsafeWith idata $ \ptr -> 
                 createTexture width height (GL.PixelData GL.RGBA GL.UnsignedByte ptr))
+
+            state <- ask
+            textureVar state name $= texture
+
+            return texture

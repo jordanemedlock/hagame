@@ -1,6 +1,7 @@
 module Graphics.Game.Hagame.Utils where
 
 import RIO
+import qualified RIO.HashMap as HM
 import qualified Data.Matrix as M
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
@@ -104,3 +105,13 @@ getTransformMatrix (Transform pos size rot) = model
         rotate = rotationMat2D (pi / 180 * rot)
         scale = scaleMat size
         model = translate * rotate * scale
+
+stateVarFromHashMap :: IORef (HM.HashMap String a) -> String -> GL.StateVar a
+stateVarFromHashMap ref key = GL.makeStateVar getter setter
+    where 
+        getter = do
+            map <- readIORef ref
+            case HM.lookup key map of
+                Just value -> return value
+                Nothing -> throwString $ "Error getting value with name: " <> key
+        setter v = modifyIORef ref (HM.insert key v)

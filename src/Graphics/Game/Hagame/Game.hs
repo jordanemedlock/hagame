@@ -1,9 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Graphics.Game.Hagame.Game (
-      GameOptions(..), runGame, defaultGameOptions
-    , DebugCallback, InitializeCallback, UpdateCallback
-    , RenderCallback, DeleteCallback
+      GameOptions(..), defaultGameOptions, initGameWindow, mainLoop, HasGameWindow(..)
+    , DebugCallback, ErrorCallback
 ) where
 
 import RIO
@@ -14,23 +13,27 @@ import Data.Time (getCurrentTime, diffUTCTime, NominalDiffTime, UTCTime)
 
 type ErrorCallback = forall env. HasLogFunc env => Utf8Builder -> RIO env ()
 type DebugCallback = forall env. HasLogFunc env => GL.DebugMessage -> RIO env ()
-type InitializeCallback a = forall env. HasLogFunc env => Maybe a -> RIO env (Maybe a) 
-type UpdateCallback a = forall env. Maybe a -> GLFW.Window -> Double -> RIO env (Maybe a)
-type RenderCallback a = forall env. Maybe a -> RIO env ()
-type DeleteCallback a = forall env. Maybe a -> RIO env ()
+-- type InitializeCallback a = forall env. HasLogFunc env => Maybe a -> RIO env (Maybe a) 
+-- type UpdateCallback a = forall env. Maybe a -> GLFW.Window -> Double -> RIO env (Maybe a)
+-- type RenderCallback a = forall env. Maybe a -> RIO env ()
+-- type DeleteCallback a = forall env. Maybe a -> RIO env ()
 
 -- | Options used to initialize the game, the whole game should be here
-data GameOptions a = 
+data GameOptions = 
     GameOptions { errorCallback :: ErrorCallback -- ^ GLFW error callback
                 , debugCallback :: DebugCallback -- ^ OpenGL debug callback
                 , windowSize :: (Int, Int) -- ^ Initial window size
                 , windowTitle :: String -- ^ Initial window title
-                , gameState :: Maybe a -- ^ Game's global state
-                , initializeGame :: InitializeCallback a -- ^ Callback used to initialize the game
-                , updateGame :: UpdateCallback a -- ^ Called to update the state ever loop before render
-                , renderGame :: RenderCallback a -- ^ Called every loop iteration to render the game
-                , deleteAssets :: DeleteCallback a -- ^ Called after game stops to remove assets/state
+                -- , gameState :: Maybe a -- ^ Game's global state
+                -- , initializeGame :: InitializeCallback a -- ^ Callback used to initialize the game
+                -- , updateGame :: UpdateCallback a -- ^ Called to update the state ever loop before render
+                -- , renderGame :: RenderCallback a -- ^ Called every loop iteration to render the game
+                -- , deleteAssets :: DeleteCallback a -- ^ Called after game stops to remove assets/state
                 }
+
+class HasGameWindow e where
+    getGameWindow :: e -> GLFW.Window
+
 
 defaultErrCallback :: ErrorCallback
 defaultErrCallback msg = do
@@ -47,45 +50,50 @@ defaultGameOptions = GameOptions    { errorCallback = defaultErrCallback
                                     , debugCallback = defaultDebugCallback
                                     , windowSize = (640, 480)
                                     , windowTitle = "Hagame Game"
-                                    , gameState = Nothing
-                                    , initializeGame = \s -> return s
-                                    , updateGame = \s w dt -> return s
-                                    , renderGame = \s -> return ()
-                                    , deleteAssets = \s -> return ()
+                                    -- , gameState = Nothing
+                                    -- , initializeGame = \s -> return s
+                                    -- , updateGame = \s w dt -> return s
+                                    -- , renderGame = \s -> return ()
+                                    -- , deleteAssets = \s -> return ()
                                     }
 
 -- | Entry point for ever game made with Hagame.  
 -- Creates the game window, initializes the game, starts the main loop then handles when it closes.
-runGame :: HasLogFunc env => GameOptions a -> RIO env ()
-runGame gameOptions = do
+-- runGame :: HasLogFunc env => GameOptions a -> RIO env ()
+-- runGame gameOptions = do
+--     env <- ask
+--     if (not initialized) 
+--         then errorCallback gameOptions "Game Initialization Failed"
+--         else do
+
+--             (mwindow, state) <- initGame gameOptions
+
+--             case mwindow of
+--                 Nothing -> errorCallback gameOptions "Game Initialization Failed"
+--                 Just window -> do
+
+--                     startTime <- liftIO getCurrentTime
+
+--                     state <- mainLoop gameOptions window state startTime
+        
+--                     deleteAssets gameOptions state
+        
+--                     liftIO GLFW.terminate
+
+-- | Initializes the game window OpenGL and GLFW environments, and runs the user initialization func.
+initGameWindow :: HasLogFunc env => GameOptions -> RIO env (GLFW.Window)
+initGameWindow gameOptions = do
     env <- ask
 
     liftIO $ GLFW.setErrorCallback $ Just (\err msg -> runRIO env $ errorCallback gameOptions (fromString msg))
 
     initialized <- liftIO GLFW.init
-    if (not initialized) 
-        then errorCallback gameOptions "Game Initialization Failed"
-        else do
 
-            (mwindow, state) <- initGame gameOptions
+    when (not initialized) do
+        errorCallback gameOptions "Game Initialization Failed"
+        throwString "Game Initialization Failed"
 
-            case mwindow of
-                Nothing -> errorCallback gameOptions "Game Initialization Failed"
-                Just window -> do
 
-                    startTime <- liftIO getCurrentTime
-
-                    state <- mainLoop gameOptions window state startTime
-        
-                    deleteAssets gameOptions state
-        
-                    liftIO GLFW.terminate
-
--- | Initializes the game window OpenGL and GLFW environments, and runs the user initialization func.
-initGame :: HasLogFunc env => GameOptions a -> RIO env (Maybe GLFW.Window, Maybe a)
-initGame gameOptions = do
-
-    env <- ask
     liftIO do
         GLFW.windowHint (GLFW.WindowHint'ContextVersionMajor 3)
         GLFW.windowHint (GLFW.WindowHint'ContextVersionMinor 3)
@@ -98,51 +106,52 @@ initGame gameOptions = do
 
     liftIO $ GLFW.makeContextCurrent mwindow
 
-    case mwindow of
-        Nothing -> return (Nothing, Nothing)
-        Just window -> do
-            
-            liftIO do
-                GL.debugOutput $= GL.Enabled
-                GL.debugMessageCallback $= Just (\msg -> runRIO env $ debugCallback gameOptions msg)
 
-                (width, height) <- GLFW.getFramebufferSize window
-                GL.viewport $= (GL.Position 0 0, GL.Size (fromIntegral width) (fromIntegral height))
+    when (isNothing mwindow) do
+        throwString "Window failed to initialize"
+    
 
-                GL.blend $= GL.Enabled
-                GL.blendFunc $= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
-                GL.depthFunc $= (Just GL.Lequal)
+    let (Just window) = mwindow
 
-            state <- return $ gameState gameOptions
+    GL.debugOutput $= GL.Enabled
+    GL.debugMessageCallback $= Just (\msg -> runRIO env $ debugCallback gameOptions msg)
 
-            state <- initializeGame gameOptions state
+    (width, height) <- liftIO $ GLFW.getFramebufferSize window
+    GL.viewport $= (GL.Position 0 0, GL.Size (fromIntegral width) (fromIntegral height))
 
-            return (Just window, state)
+    GL.blend $= GL.Enabled
+    GL.blendFunc $= (GL.SrcAlpha, GL.OneMinusSrcAlpha)
+    GL.depthFunc $= (Just GL.Lequal)
+
+    return window
 
 
 -- | Recursive game loop
-mainLoop :: GameOptions a -> GLFW.Window -> Maybe a -> UTCTime -> RIO env (Maybe a)
-mainLoop gameOptions window state previousTime = do
-    thisTime <- liftIO do
-        GLFW.pollEvents
+mainLoop :: HasGameWindow env 
+         => (Double -> RIO env ()) 
+         -> RIO env ()
+mainLoop updateFunc = loop =<< liftIO getCurrentTime
+    where 
+        loop previousTime = do
+            env <- ask 
 
-        GL.clearColor $= (GL.Color4 0 0 0 1)
-        GL.clear [GL.ColorBuffer, GL.DepthBuffer]
+            liftIO GLFW.pollEvents
 
-        getCurrentTime
+            GL.clearColor $= (GL.Color4 0 0 0 1)
+            liftIO $ GL.clear [GL.ColorBuffer, GL.DepthBuffer]
 
-    let deltaTime = diffUTCTime thisTime previousTime
-    let dt = (realToFrac deltaTime :: Double)
+            thisTime <- liftIO getCurrentTime
 
-    state <- updateGame gameOptions state window dt
+            let deltaTime = diffUTCTime thisTime previousTime
+            let dt = (realToFrac deltaTime :: Double)
 
-    renderGame gameOptions state
+            updateFunc dt
 
-    shouldClose <- liftIO do
-        GLFW.swapBuffers window
-        GLFW.windowShouldClose window
+            let window = getGameWindow env
 
-    if shouldClose 
-        then return state
-        else mainLoop gameOptions window state thisTime
+            shouldClose <- liftIO do
+                GLFW.swapBuffers window
+                GLFW.windowShouldClose window
+
+            when (not shouldClose) $ loop thisTime
 

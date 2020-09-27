@@ -31,17 +31,18 @@ data AnimatedSprite =
                     , asprColor :: GL.Color4 Float
                     }
 
-createAnimation :: HasLogFunc env => String -> Int -> Float -> Bool -> RIO env Animation
-createAnimation filePattern num duration loop = do
-    textures <- mapM (loadTexture.(printf filePattern)) [0..num-1]
+createAnimation :: (HasLogFunc env, HasTextures env) => String -> String -> Int -> Float -> Bool -> RIO env Animation
+createAnimation name filePattern num duration loop = do
+    let getTexture i = loadTexture (printf (name <> "_%03d") i) (printf filePattern i)
+    textures <- mapM getTexture [0..num-1]
 
     return (Animation textures loop duration 0.0)
 
-createAnimatedSprite :: HasLogFunc env => [(String, String, Int, Float, Bool)] -> String -> Shader -> Transform -> GL.Color4 Float -> RIO env AnimatedSprite
+createAnimatedSprite :: (HasLogFunc env, HasTextures env) => [(String, String, Int, Float, Bool)] -> String -> Shader -> Transform -> GL.Color4 Float -> RIO env AnimatedSprite
 createAnimatedSprite anims current shader transform color = do
     vao <- createSquareVAO
 
-    animations <- Map.fromList <$> mapM (\(k, f, i, d, l) -> (k,)<$>createAnimation f i d l) anims
+    animations <- Map.fromList <$> mapM (\(k, f, i, d, l) -> (k,)<$>createAnimation k f i d l) anims
 
     let fixedSize = fixSize (texSize $ head $ animTextures $ head $ Map.elems $ animations) (size transform)
 

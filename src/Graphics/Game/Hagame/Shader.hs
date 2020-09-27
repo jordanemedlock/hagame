@@ -1,5 +1,5 @@
 module Graphics.Game.Hagame.Shader (
-    loadShader, useShader, clearShader, deleteShader, uniform, Shader
+    loadShader, useShader, clearShader, deleteShader, uniform, Shader, HasShaders(..)
 ) where
 
 import RIO
@@ -11,13 +11,17 @@ import System.FilePath.Posix (takeExtensions)
 -- | Wraps an OpenGL program 
 data Shader = Shader GL.Program
 
+class HasShaders env where
+    shaderVar :: env -> String -> GL.StateVar Shader
+
 -- | Loads a shader from its respective GLSL files
-loadShader  :: HasLogFunc env
-            => String -- ^ Vertex shader file location.  Must be *.vert
+loadShader  :: (HasLogFunc env, HasShaders env)
+            => String
+            -> String -- ^ Vertex shader file location.  Must be *.vert
             -> String -- ^ Fragment shader file location.  Must be *.frag
             -> Maybe String -- ^ Optional Geometry file location.  Must be *.geom
             -> RIO env Shader
-loadShader vertexFile fragmentFile mGeometryFile = do
+loadShader name vertexFile fragmentFile mGeometryFile = do
     logInfo "Reading Shader Files"
     if ((takeExtensions vertexFile) /= ".vert" && (takeExtensions fragmentFile) /= ".frag")
         then throwString "Wrong File extension for shader"
@@ -26,7 +30,11 @@ loadShader vertexFile fragmentFile mGeometryFile = do
             fragmentSource <- readFileBinary fragmentFile
             mGeometrySource <- mapM readFileBinary mGeometryFile
 
-            compileShader vertexSource fragmentSource mGeometrySource
+            shader <- compileShader vertexSource fragmentSource mGeometrySource
+            state <- ask
+            shaderVar state name $= shader
+
+            return shader
 
 -- | Compiles shader from its strings
 compileShader   :: HasLogFunc env

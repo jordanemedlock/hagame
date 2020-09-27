@@ -2,11 +2,13 @@
 
 module Graphics.Game.Hagame.Fonts (
       Character(charSize, charBearing, charAdvancement), Font(fontCharacters, fontShader)
+    , HasFonts(..)
     , loadFont, renderString
 ) where
 
 import RIO
 import RIO.List.Partial ((!!))
+import qualified RIO.HashMap as HM
 import FreeType
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
@@ -16,6 +18,7 @@ import Foreign.Ptr (nullPtr)
 import Foreign.Marshal.Array (newArray)
 -- import Control.Monad (foldM_)
 import Graphics.Game.Hagame.Shader (Shader, useShader, uniform)
+import Graphics.Game.Hagame.Utils
 
 -- | 'Character' data type for fonts, contains everthing to render a 'Char'
 data Character = 
@@ -33,13 +36,47 @@ data Font =
             , fontVBO :: GL.BufferObject -- ^ Reusable VBO to hold the tris
             }
 
--- | Load a font from a TTF file 
-loadFont    :: MonadIO m 
+data FontSystem = 
+    FontSystem  { fsFonts :: IORef (HM.HashMap String Font) }
+
+initFontSystem :: IO FontSystem
+initFontSystem = FontSystem <$> newIORef HM.empty
+
+class HasFonts e where
+    fontVar :: e -> String -> GL.StateVar Font
+
+class HasFontSystem env where
+    getFontSystem :: env -> FontSystem
+
+instance HasFontSystem FontSystem where
+    getFontSystem = id
+
+instance HasFonts FontSystem where 
+    fontVar env = stateVarFromHashMap (fsFonts env)
+
+-- | Load a font into a global env
+loadFont    :: HasFonts env
+            => String -- ^ Font name
+            -> String -- ^ Font filename
+            -> Int
+            -> Shader
+            -> RIO env Font
+loadFont name filename height shader = do
+    env <- ask
+
+    font <- readFont filename height shader
+
+    fontVar env name $= font
+
+    return font
+
+-- | Read a font from a TTF file 
+readFont    :: MonadIO m 
             => String   -- ^ Filename
             -> Int      -- ^ Font size/height in pixels
             -> Shader   -- ^ Glyph shader to render the font
             -> m Font
-loadFont name height shader = withFontFace name $ \lib face -> do
+readFont name height shader = withFontFace name $ \lib face -> do
     GL.rowAlignment GL.Unpack $= 1
 
     liftIO $ ft_Set_Pixel_Sizes face 0 (fromIntegral height)
