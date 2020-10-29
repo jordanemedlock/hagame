@@ -2,6 +2,7 @@
 
 module Graphics.Game.Hagame.Sprites.Animated where
 
+import RIO
 import Graphics.Game.Hagame.Sprites
 import Graphics.Game.Hagame.Shader
 import Graphics.Game.Hagame.Texture
@@ -12,7 +13,7 @@ import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
 import Text.Printf
 import Data.Either
-
+import RIO.List.Partial (head, (!!))
 data Animation = 
     Animation   { animTextures :: [Texture]
                 , animLoop :: Bool

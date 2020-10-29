@@ -1,6 +1,6 @@
 module Graphics.Game.Hagame.Utils where
 
-
+import RIO
 import qualified Data.Matrix as M
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))

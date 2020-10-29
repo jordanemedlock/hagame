@@ -3,7 +3,7 @@ module Graphics.Game.Hagame.Sprites (
     , createSprite, renderSprite, deleteSprite, rotateSprite, moveSprite, updateSpritePos
 ) where
 
-
+import RIO
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
 import Foreign.Marshal.Array

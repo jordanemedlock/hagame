@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e444ae3b44be8cb80f163037ebbb44d92aaf4e3c491835ead76d56b63cacdef5
+-- hash: 973488b55323b6152fa027e1ed64dc10dde0148903be5cc5daa8ed0c654d0564
 
 name:           hagame
 version:        0.1.0.0
@@ -29,7 +29,6 @@ library
   exposed-modules:
       Graphics.Game.Hagame
   other-modules:
-      Graphics.Game.Hagame.ECS.Component
       Graphics.Game.Hagame.Fonts
       Graphics.Game.Hagame.Game
       Graphics.Game.Hagame.ResourceManager

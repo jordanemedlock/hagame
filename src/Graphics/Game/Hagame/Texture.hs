@@ -2,7 +2,7 @@ module Graphics.Game.Hagame.Texture (
     loadTexture, bindTexture, Texture(texSize)
 ) where
 
-
+import RIO
 import qualified Graphics.Rendering.OpenGL as GL
 import Graphics.Rendering.OpenGL (($=))
 import Foreign.Marshal.Array
@@ -62,7 +62,7 @@ loadTexture filename = do
 
     case eimage of
         Left msg -> do
-            putStrLn msg
+            -- TODO: putStrLn msg
             return $ Left msg
         Right image -> do
             let rgbPixel = convertRGBA8 image
