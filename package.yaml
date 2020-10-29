@@ -33,6 +33,7 @@ dependencies:
 - time >=1.9 && <2
 - freetype2 >=0.2 && <0.3
 - containers >=0.6 && <0.7
+- extensible-ecs >=0.1 && <0.2
 
 default-extensions:
 - NoImplicitPrelude
@@ -41,7 +42,7 @@ default-extensions:
 
 library:
   source-dirs: src
-  exposed-modules: Graphics.Game.Hagame
+  exposed-modules: Hagame
 
 tests:
   hagame-test:

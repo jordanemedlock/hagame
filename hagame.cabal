@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b94dc9ae30a4e92cf706c31273f5f8a685f75c2f1bb92bf364e9fcf0509e464e
+-- hash: 8c46f7cafb5df69ff72eac3556f4bc793ab0d7d0964e6a73b924e6d716f2158d
 
 name:           hagame
 version:        0.1.0.0
@@ -27,8 +27,9 @@ source-repository head
 
 library
   exposed-modules:
-      Graphics.Game.Hagame
+      Hagame
   other-modules:
+      Graphics.Game.Hagame
       Graphics.Game.Hagame.Fonts
       Graphics.Game.Hagame.Game
       Graphics.Game.Hagame.Shader
@@ -36,6 +37,9 @@ library
       Graphics.Game.Hagame.Sprites.Animated
       Graphics.Game.Hagame.Texture
       Graphics.Game.Hagame.Utils
+      Hagame.Systems.Render2D
+      Hagame.Utils
+      Hagame.Window
       Paths_hagame
   hs-source-dirs:
       src
@@ -48,6 +52,7 @@ library
     , bindings-GLFW >=3.3 && <4
     , bytestring >=0.10 && <1
     , containers >=0.6 && <0.7
+    , extensible-ecs >=0.1 && <0.2
     , filepath >=1.4 && <2
     , freetype2 >=0.2 && <0.3
     , matrix >=0.3 && <0.4
@@ -73,6 +78,7 @@ test-suite hagame-test
     , bindings-GLFW >=3.3 && <4
     , bytestring >=0.10 && <1
     , containers >=0.6 && <0.7
+    , extensible-ecs >=0.1 && <0.2
     , filepath >=1.4 && <2
     , freetype2 >=0.2 && <0.3
     , hagame
